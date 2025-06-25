@@ -14,18 +14,18 @@
         <!-- CSVファイル読み込み -->
         <div class="bg-white p-4 rounded border mb-4">
             <label class="block mb-2 font-semibold">CSVファイル読み込み:</label>
-            <div class="flex items-center gap-4">
-                <input type="file" accept=".csv" id="csvFile" class="px-3 py-2 border rounded">
+            <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                <input type="file" accept=".csv" id="csvFile" class="px-3 py-2 border rounded flex-shrink-0">
                 <span id="loadingText" class="text-sm text-blue-600 hidden">読み込み中...</span>
-                <span id="fileName" class="text-sm text-gray-600"></span>
             </div>
+            <div id="fileName" class="mt-2 text-sm text-gray-600 break-all"></div>
             <div id="dataCount" class="mt-2 text-sm text-gray-600 hidden"></div>
         </div>
         
         <!-- セグメント選択 -->
         <div id="segmentSection" class="bg-white p-4 rounded border mb-4 hidden">
             <label class="block mb-2 font-semibold">セグメント:</label>
-            <select id="segmentSelect" class="px-3 py-2 border rounded w-64">
+            <select id="segmentSelect" class="px-3 py-2 border rounded w-full sm:w-64">
                 <option value="">選択してください</option>
             </select>
         </div>
@@ -38,9 +38,9 @@
                 <div id="summary" class="text-sm mb-3"></div>
                 
                 <!-- ソート選択 -->
-                <div class="flex items-center gap-2">
+                <div class="flex flex-col sm:flex-row sm:items-center gap-2">
                     <span class="text-sm font-semibold">ソート:</span>
-                    <select id="sortSelect" class="px-2 py-1 border rounded text-sm">
+                    <select id="sortSelect" class="px-2 py-1 border rounded text-sm w-full sm:w-auto">
                         <option value="見切数量">見切数量降順</option>
                         <option value="荒利益高">荒利益高降順</option>
                         <option value="売上数量">売上数量降順</option>
@@ -211,10 +211,12 @@
             // UI更新
             resultsTitle.textContent = `**セグメント ${selectedSegment} の検索結果**`;
             summary.innerHTML = `
-                商品数: ${summaryData.商品数}件 | 
-                売上数量合計: ${summaryData.売上数量合計}個 | 
-                荒利益高合計: ${summaryData.荒利益高合計.toLocaleString()}円 | 
-                見切数量合計: ${summaryData.見切数量合計}個
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+                    <div>商品数: ${summaryData.商品数}件</div>
+                    <div>売上数量: ${summaryData.売上数量合計}個</div>
+                    <div>荒利益高: ${summaryData.荒利益高合計.toLocaleString()}円</div>
+                    <div>見切数量: ${summaryData.見切数量合計}個</div>
+                </div>
             `;
 
             // 商品リスト更新
@@ -223,12 +225,12 @@
                 const productDiv = document.createElement('div');
                 productDiv.className = 'border-b py-2 last:border-b-0';
                 productDiv.innerHTML = `
-                    <div class="flex justify-between items-start">
-                        <div class="flex-1 mr-4">
+                    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
+                        <div class="flex-1 sm:mr-4">
                             <div class="font-medium text-sm">${item.商品 || ''}</div>
                             <div class="text-xs text-gray-600">${item.規格 || ''}</div>
                         </div>
-                        <div class="flex gap-6 text-sm font-mono">
+                        <div class="flex gap-4 sm:gap-6 text-sm font-mono">
                             <div class="text-right">
                                 <div class="text-xs text-gray-500">売上</div>
                                 <div>${item.売上数量}</div>
@@ -250,33 +252,64 @@
 
         // 初期CSVファイル読み込み
         async function loadInitialCSV() {
-            try {
-                const response = await fetch('data.csv');
-                if (response.ok) {
-                    const csvData = await response.text();
-                    Papa.parse(csvData, {
-                        header: true,
-                        skipEmptyLines: true,
-                        complete: function(results) {
-                            const processedData = results.data.map(row => ({
-                                ...row,
-                                売上数量: parseInt(row.売上数量) || 0,
-                                荒利益高: Math.round(parseFloat(row.荒利益高) || 0),
-                                廃棄売変数量: parseInt(row.廃棄売変数量) || 0,
-                                レジ売変数量: parseInt(row.レジ売変数量) || 0,
-                                見切数量: (parseInt(row.廃棄売変数量) || 0) + (parseInt(row.レジ売変数量) || 0)
-                            }));
-                            
-                            data = processedData;
-                            fileName.textContent = '読み込み済み: data.csv（サンプル）';
-                            updateUI();
-                            updateSegmentOptions();
+            // 複数のファイル名を試す（相対パスと絶対パス両方）
+            const possibleFiles = [
+                'data.csv', 
+                'sample.csv', 
+                'segment_data.csv',
+                './data.csv',
+                './sample.csv', 
+                './segment_data.csv'
+            ];
+            
+            for (const filename of possibleFiles) {
+                try {
+                    console.log(`Trying to load: ${filename}`);
+                    const response = await fetch(filename, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'text/csv'
                         }
                     });
+                    
+                    if (response.ok) {
+                        const csvData = await response.text();
+                        console.log(`Successfully loaded: ${filename}`);
+                        console.log(`CSV data length: ${csvData.length}`);
+                        
+                        Papa.parse(csvData, {
+                            header: true,
+                            skipEmptyLines: true,
+                            complete: function(results) {
+                                console.log(`Parsed ${results.data.length} rows`);
+                                const processedData = results.data.map(row => ({
+                                    ...row,
+                                    売上数量: parseInt(row.売上数量) || 0,
+                                    荒利益高: Math.round(parseFloat(row.荒利益高) || 0),
+                                    廃棄売変数量: parseInt(row.廃棄売変数量) || 0,
+                                    レジ売変数量: parseInt(row.レジ売変数量) || 0,
+                                    見切数量: (parseInt(row.廃棄売変数量) || 0) + (parseInt(row.レジ売変数量) || 0)
+                                }));
+                                
+                                data = processedData;
+                                fileName.textContent = `読み込み済み: ${filename}（サンプル）`;
+                                updateUI();
+                                updateSegmentOptions();
+                            },
+                            error: function(error) {
+                                console.error('Papa Parse error:', error);
+                            }
+                        });
+                        return; // 成功したら関数を終了
+                    } else {
+                        console.log(`Failed to load ${filename}: ${response.status} ${response.statusText}`);
+                    }
+                } catch (error) {
+                    console.log(`Error loading ${filename}:`, error);
                 }
-            } catch (error) {
-                console.log('初期CSVファイルが見つかりません:', error);
             }
+            
+            console.log('No CSV files found. Please upload a CSV file manually.');
         }
 
         // 初期表示
