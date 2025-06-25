@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>セグメント別商品分析ツール</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div id="app" class="max-w-5xl mx-auto p-4">
+        <h1 class="text-2xl font-bold mb-4">セグメント別商品分析ツール</h1>
+        
+        <!-- CSVファイル読み込み -->
+        <div class="bg-white p-4 rounded border mb-4">
+            <label class="block mb-2 font-semibold">CSVファイル読み込み:</label>
+            <div class="flex items-center gap-4">
+                <input type="file" accept=".csv" id="csvFile" class="px-3 py-2 border rounded">
+                <span id="loadingText" class="text-sm text-blue-600 hidden">読み込み中...</span>
+                <span id="fileName" class="text-sm text-gray-600"></span>
+            </div>
+            <div id="dataCount" class="mt-2 text-sm text-gray-600 hidden"></div>
+        </div>
+        
+        <!-- セグメント選択 -->
+        <div id="segmentSection" class="bg-white p-4 rounded border mb-4 hidden">
+            <label class="block mb-2 font-semibold">セグメント:</label>
+            <select id="segmentSelect" class="px-3 py-2 border rounded w-64">
+                <option value="">選択してください</option>
+            </select>
+        </div>
+
+        <!-- 分析結果 -->
+        <div id="resultsSection" class="bg-white rounded border hidden">
+            <!-- サマリー -->
+            <div class="p-4 bg-blue-50 border-b">
+                <h2 id="resultsTitle" class="font-bold text-lg mb-2"></h2>
+                <div id="summary" class="text-sm mb-3"></div>
+                
+                <!-- ソート選択 -->
+                <div class="flex items-center gap-2">
+                    <span class="text-sm font-semibold">ソート:</span>
+                    <select id="sortSelect" class="px-2 py-1 border rounded text-sm">
+                        <option value="見切数量">見切数量降順</option>
+                        <option value="荒利益高">荒利益高降順</option>
+                        <option value="売上数量">売上数量降順</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- 商品リスト -->
+            <div id="productList" class="p-4"></div>
+
+            <!-- フッター -->
+            <div class="p-3 bg-gray-50 text-xs text-gray-600 border-t">
+                <span id="footerText">※見切数量 = 廃棄売変数量 + レジ売変数量 | 見切数量降順でソート中</span>
+            </div>
+        </div>
+
+        <!-- メッセージ -->
+        <div id="noDataMessage" class="bg-white p-8 rounded border text-center text-gray-500">
+            CSVファイルを読み込んでください
+        </div>
+        
+        <div id="noSegmentMessage" class="bg-white p-8 rounded border text-center text-gray-500 hidden">
+            セグメントを選択してください
+        </div>
+    </div>
+
+    <script>
+        let data = [];
+        let selectedSegment = '';
+        let sortBy = '見切数量';
+
+        // DOM要素の取得
+        const csvFileInput = document.getElementById('csvFile');
+        const loadingText = document.getElementById('loadingText');
+        const fileName = document.getElementById('fileName');
+        const dataCount = document.getElementById('dataCount');
+        const segmentSection = document.getElementById('segmentSection');
+        const segmentSelect = document.getElementById('segmentSelect');
+        const resultsSection = document.getElementById('resultsSection');
+        const resultsTitle = document.getElementById('resultsTitle');
+        const summary = document.getElementById('summary');
+        const sortSelect = document.getElementById('sortSelect');
+        const productList = document.getElementById('productList');
+        const footerText = document.getElementById('footerText');
+        const noDataMessage = document.getElementById('noDataMessage');
+        const noSegmentMessage = document.getElementById('noSegmentMessage');
+
+        // CSVファイル読み込み処理
+        csvFileInput.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            loadingText.classList.remove('hidden');
+            fileName.textContent = `読み込み済み: ${file.name}`;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const csvData = e.target.result;
+                Papa.parse(csvData, {
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        const processedData = results.data.map(row => ({
+                            ...row,
+                            売上数量: parseInt(row.売上数量) || 0,
+                            荒利益高: Math.round(parseFloat(row.荒利益高) || 0),
+                            廃棄売変数量: parseInt(row.廃棄売変数量) || 0,
+                            レジ売変数量: parseInt(row.レジ売変数量) || 0,
+                            見切数量: (parseInt(row.廃棄売変数量) || 0) + (parseInt(row.レジ売変数量) || 0)
+                        }));
+                        
+                        data = processedData;
+                        selectedSegment = '';
+                        loadingText.classList.add('hidden');
+                        
+                        // UI更新
+                        updateUI();
+                        updateSegmentOptions();
+                    },
+                    error: function(error) {
+                        console.error('CSV解析エラー:', error);
+                        loadingText.classList.add('hidden');
+                        alert('CSVファイルの読み込みに失敗しました。');
+                    }
+                });
+            };
+            reader.readAsText(file, 'UTF-8');
+        });
+
+        // セグメント選択変更
+        segmentSelect.addEventListener('change', function() {
+            selectedSegment = this.value;
+            updateResults();
+        });
+
+        // ソート変更
+        sortSelect.addEventListener('change', function() {
+            sortBy = this.value;
+            updateResults();
+            footerText.textContent = `※見切数量 = 廃棄売変数量 + レジ売変数量 | ${sortBy}降順でソート中`;
+        });
+
+        // UI更新
+        function updateUI() {
+            if (data.length > 0) {
+                dataCount.textContent = `${data.length}件のデータが読み込まれています`;
+                dataCount.classList.remove('hidden');
+                segmentSection.classList.remove('hidden');
+                noDataMessage.classList.add('hidden');
+                
+                if (selectedSegment) {
+                    noSegmentMessage.classList.add('hidden');
+                } else {
+                    noSegmentMessage.classList.remove('hidden');
+                    resultsSection.classList.add('hidden');
+                }
+            } else {
+                dataCount.classList.add('hidden');
+                segmentSection.classList.add('hidden');
+                resultsSection.classList.add('hidden');
+                noSegmentMessage.classList.add('hidden');
+                noDataMessage.classList.remove('hidden');
+            }
+        }
+
+        // セグメントオプション更新
+        function updateSegmentOptions() {
+            const segments = [...new Set(data.map(item => item.セグメント))]
+                .sort((a, b) => parseInt(a) - parseInt(b));
+            
+            segmentSelect.innerHTML = '<option value="">選択してください</option>';
+            segments.forEach(segment => {
+                const option = document.createElement('option');
+                option.value = segment;
+                option.textContent = `セグメント ${segment}`;
+                segmentSelect.appendChild(option);
+            });
+        }
+
+        // 結果更新
+        function updateResults() {
+            if (!selectedSegment) {
+                resultsSection.classList.add('hidden');
+                noSegmentMessage.classList.remove('hidden');
+                return;
+            }
+
+            noSegmentMessage.classList.add('hidden');
+            resultsSection.classList.remove('hidden');
+
+            // データフィルタリングとソート
+            const filteredData = data.filter(item => item.セグメント === selectedSegment);
+            const sortedData = filteredData.sort((a, b) => {
+                if (sortBy === '見切数量') return b.見切数量 - a.見切数量;
+                if (sortBy === '荒利益高') return b.荒利益高 - a.荒利益高;
+                if (sortBy === '売上数量') return b.売上数量 - a.売上数量;
+                return 0;
+            });
+
+            // サマリー計算
+            const summaryData = {
+                商品数: sortedData.length,
+                売上数量合計: sortedData.reduce((sum, item) => sum + item.売上数量, 0),
+                荒利益高合計: sortedData.reduce((sum, item) => sum + item.荒利益高, 0),
+                見切数量合計: sortedData.reduce((sum, item) => sum + item.見切数量, 0)
+            };
+
+            // UI更新
+            resultsTitle.textContent = `**セグメント ${selectedSegment} の検索結果**`;
+            summary.innerHTML = `
+                商品数: ${summaryData.商品数}件 | 
+                売上数量合計: ${summaryData.売上数量合計}個 | 
+                荒利益高合計: ${summaryData.荒利益高合計.toLocaleString()}円 | 
+                見切数量合計: ${summaryData.見切数量合計}個
+            `;
+
+            // 商品リスト更新
+            productList.innerHTML = '';
+            sortedData.forEach((item, index) => {
+                const productDiv = document.createElement('div');
+                productDiv.className = 'border-b py-2 last:border-b-0';
+                productDiv.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1 mr-4">
+                            <div class="font-medium text-sm">${item.商品 || ''}</div>
+                            <div class="text-xs text-gray-600">${item.規格 || ''}</div>
+                        </div>
+                        <div class="flex gap-6 text-sm font-mono">
+                            <div class="text-right">
+                                <div class="text-xs text-gray-500">売上</div>
+                                <div>${item.売上数量}</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-xs text-gray-500">荒利益</div>
+                                <div>${item.荒利益高.toLocaleString()}</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-xs text-gray-500">見切</div>
+                                <div class="font-bold">${item.見切数量}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                productList.appendChild(productDiv);
+            });
+        }
+
+        // 初期CSVファイル読み込み
+        async function loadInitialCSV() {
+            try {
+                const response = await fetch('無題 1.csv');
+                if (response.ok) {
+                    const csvData = await response.text();
+                    Papa.parse(csvData, {
+                        header: true,
+                        skipEmptyLines: true,
+                        complete: function(results) {
+                            const processedData = results.data.map(row => ({
+                                ...row,
+                                売上数量: parseInt(row.売上数量) || 0,
+                                荒利益高: Math.round(parseFloat(row.荒利益高) || 0),
+                                廃棄売変数量: parseInt(row.廃棄売変数量) || 0,
+                                レジ売変数量: parseInt(row.レジ売変数量) || 0,
+                                見切数量: (parseInt(row.廃棄売変数量) || 0) + (parseInt(row.レジ売変数量) || 0)
+                            }));
+                            
+                            data = processedData;
+                            fileName.textContent = '読み込み済み: 無題 1.csv（サンプル）';
+                            updateUI();
+                            updateSegmentOptions();
+                        }
+                    });
+                }
+            } catch (error) {
+                console.log('初期CSVファイルが見つかりません:', error);
+            }
+        }
+
+        // 初期表示
+        loadInitialCSV();
+        updateUI();
+    </script>
+</body>
+</html>
