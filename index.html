@@ -8,24 +8,26 @@
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-50 min-h-screen">
-    <div id="app" class="max-w-5xl mx-auto p-4">
-        <h1 class="text-2xl font-bold mb-4">セグメント別商品分析ツール</h1>
+    <div id="app" class="max-w-5xl mx-auto p-2 sm:p-4">
+        <h1 class="text-xl sm:text-2xl font-bold mb-4 px-2">セグメント別商品分析ツール</h1>
         
         <!-- CSVファイル読み込み -->
-        <div class="bg-white p-4 rounded border mb-4">
-            <label class="block mb-2 font-semibold">CSVファイル読み込み:</label>
-            <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                <input type="file" accept=".csv" id="csvFile" class="px-3 py-2 border rounded flex-shrink-0">
-                <span id="loadingText" class="text-sm text-blue-600 hidden">読み込み中...</span>
+        <div class="bg-white p-3 sm:p-4 rounded border mb-4">
+            <label class="block mb-2 font-semibold text-sm sm:text-base">CSVファイル読み込み:</label>
+            <div class="flex flex-col gap-2">
+                <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                    <input type="file" accept=".csv" id="csvFile" class="px-3 py-2 border rounded text-sm flex-shrink-0">
+                    <span id="loadingText" class="text-sm text-blue-600 hidden">読み込み中...</span>
+                </div>
+                <div id="dataCount" class="text-sm text-gray-600 hidden"></div>
+                <div id="fileName" class="text-xs sm:text-sm text-gray-500 break-all hidden"></div>
             </div>
-            <div id="fileName" class="mt-2 text-sm text-gray-600 break-all"></div>
-            <div id="dataCount" class="mt-2 text-sm text-gray-600 hidden"></div>
         </div>
         
         <!-- セグメント選択 -->
-        <div id="segmentSection" class="bg-white p-4 rounded border mb-4 hidden">
-            <label class="block mb-2 font-semibold">セグメント:</label>
-            <select id="segmentSelect" class="px-3 py-2 border rounded w-full sm:w-64">
+        <div id="segmentSection" class="bg-white p-3 sm:p-4 rounded border mb-4 hidden">
+            <label class="block mb-2 font-semibold text-sm sm:text-base">セグメント:</label>
+            <select id="segmentSelect" class="px-3 py-2 border rounded w-full text-sm sm:text-base">
                 <option value="">選択してください</option>
             </select>
         </div>
@@ -33,14 +35,14 @@
         <!-- 分析結果 -->
         <div id="resultsSection" class="bg-white rounded border hidden">
             <!-- サマリー -->
-            <div class="p-4 bg-blue-50 border-b">
-                <h2 id="resultsTitle" class="font-bold text-lg mb-2"></h2>
-                <div id="summary" class="text-sm mb-3"></div>
+            <div class="p-3 sm:p-4 bg-blue-50 border-b">
+                <h2 id="resultsTitle" class="font-bold text-base sm:text-lg mb-2"></h2>
+                <div id="summary" class="text-xs sm:text-sm mb-3"></div>
                 
                 <!-- ソート選択 -->
                 <div class="flex flex-col sm:flex-row sm:items-center gap-2">
-                    <span class="text-sm font-semibold">ソート:</span>
-                    <select id="sortSelect" class="px-2 py-1 border rounded text-sm w-full sm:w-auto">
+                    <span class="text-xs sm:text-sm font-semibold">ソート:</span>
+                    <select id="sortSelect" class="px-2 py-1 border rounded text-xs sm:text-sm w-full sm:w-auto">
                         <option value="見切数量">見切数量降順</option>
                         <option value="荒利益高">荒利益高降順</option>
                         <option value="売上数量">売上数量降順</option>
@@ -49,7 +51,7 @@
             </div>
 
             <!-- 商品リスト -->
-            <div id="productList" class="p-4"></div>
+            <div id="productList" class="p-2 sm:p-4"></div>
 
             <!-- フッター -->
             <div class="p-3 bg-gray-50 text-xs text-gray-600 border-t">
@@ -58,11 +60,11 @@
         </div>
 
         <!-- メッセージ -->
-        <div id="noDataMessage" class="bg-white p-8 rounded border text-center text-gray-500">
+        <div id="noDataMessage" class="bg-white p-6 sm:p-8 rounded border text-center text-gray-500">
             CSVファイルを読み込んでください
         </div>
         
-        <div id="noSegmentMessage" class="bg-white p-8 rounded border text-center text-gray-500 hidden">
+        <div id="noSegmentMessage" class="bg-white p-6 sm:p-8 rounded border text-center text-gray-500 hidden">
             セグメントを選択してください
         </div>
     </div>
@@ -94,8 +96,7 @@
             if (!file) return;
 
             loadingText.classList.remove('hidden');
-            fileName.textContent = `読み込み済み: ${file.name}`;
-
+            
             const reader = new FileReader();
             reader.onload = function(e) {
                 const csvData = e.target.result;
@@ -115,6 +116,10 @@
                         data = processedData;
                         selectedSegment = '';
                         loadingText.classList.add('hidden');
+                        
+                        // ファイル名とデータ件数を表示
+                        fileName.textContent = `読み込み済み: ${file.name}`;
+                        fileName.classList.remove('hidden');
                         
                         // UI更新
                         updateUI();
@@ -159,6 +164,7 @@
                 }
             } else {
                 dataCount.classList.add('hidden');
+                fileName.classList.add('hidden');
                 segmentSection.classList.add('hidden');
                 resultsSection.classList.add('hidden');
                 noSegmentMessage.classList.add('hidden');
@@ -209,13 +215,25 @@
             };
 
             // UI更新
-            resultsTitle.textContent = `**セグメント ${selectedSegment} の検索結果**`;
+            resultsTitle.textContent = `セグメント ${selectedSegment} の検索結果`;
             summary.innerHTML = `
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
-                    <div>商品数: ${summaryData.商品数}件</div>
-                    <div>売上数量: ${summaryData.売上数量合計}個</div>
-                    <div>荒利益高: ${summaryData.荒利益高合計.toLocaleString()}円</div>
-                    <div>見切数量: ${summaryData.見切数量合計}個</div>
+                <div class="grid grid-cols-2 gap-2 text-xs sm:text-sm">
+                    <div class="bg-white p-2 rounded border">
+                        <div class="text-gray-500 text-xs">商品数</div>
+                        <div class="font-semibold">${summaryData.商品数}件</div>
+                    </div>
+                    <div class="bg-white p-2 rounded border">
+                        <div class="text-gray-500 text-xs">売上数量</div>
+                        <div class="font-semibold">${summaryData.売上数量合計}個</div>
+                    </div>
+                    <div class="bg-white p-2 rounded border">
+                        <div class="text-gray-500 text-xs">荒利益高</div>
+                        <div class="font-semibold">${summaryData.荒利益高合計.toLocaleString()}円</div>
+                    </div>
+                    <div class="bg-white p-2 rounded border">
+                        <div class="text-gray-500 text-xs">見切数量</div>
+                        <div class="font-semibold">${summaryData.見切数量合計}個</div>
+                    </div>
                 </div>
             `;
 
@@ -223,25 +241,23 @@
             productList.innerHTML = '';
             sortedData.forEach((item, index) => {
                 const productDiv = document.createElement('div');
-                productDiv.className = 'border-b py-2 last:border-b-0';
+                productDiv.className = 'border-b py-3 last:border-b-0';
                 productDiv.innerHTML = `
-                    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
-                        <div class="flex-1 sm:mr-4">
-                            <div class="font-medium text-sm">${item.商品 || ''}</div>
-                            <div class="text-xs text-gray-600">${item.規格 || ''}</div>
-                        </div>
-                        <div class="flex gap-4 sm:gap-6 text-sm font-mono">
-                            <div class="text-right">
-                                <div class="text-xs text-gray-500">売上</div>
-                                <div>${item.売上数量}</div>
+                    <div class="space-y-2">
+                        <div class="font-medium text-sm break-words">${item.商品 || ''}</div>
+                        <div class="text-xs text-gray-600 break-words">${item.規格 || ''}</div>
+                        <div class="grid grid-cols-3 gap-2 text-xs font-mono">
+                            <div class="bg-gray-50 p-2 rounded text-center">
+                                <div class="text-gray-500 mb-1">売上</div>
+                                <div class="font-semibold">${item.売上数量}</div>
                             </div>
-                            <div class="text-right">
-                                <div class="text-xs text-gray-500">荒利益</div>
-                                <div>${item.荒利益高.toLocaleString()}</div>
+                            <div class="bg-gray-50 p-2 rounded text-center">
+                                <div class="text-gray-500 mb-1">荒利益</div>
+                                <div class="font-semibold">${item.荒利益高.toLocaleString()}</div>
                             </div>
-                            <div class="text-right">
-                                <div class="text-xs text-gray-500">見切</div>
-                                <div class="font-bold">${item.見切数量}</div>
+                            <div class="bg-red-50 p-2 rounded text-center border border-red-200">
+                                <div class="text-red-600 mb-1">見切</div>
+                                <div class="font-bold text-red-700">${item.見切数量}</div>
                             </div>
                         </div>
                     </div>
@@ -252,7 +268,6 @@
 
         // 初期CSVファイル読み込み
         async function loadInitialCSV() {
-            // 複数のファイル名を試す（相対パスと絶対パス両方）
             const possibleFiles = [
                 'data.csv', 
                 'sample.csv', 
@@ -293,6 +308,7 @@
                                 
                                 data = processedData;
                                 fileName.textContent = `読み込み済み: ${filename}（サンプル）`;
+                                fileName.classList.remove('hidden');
                                 updateUI();
                                 updateSegmentOptions();
                             },
@@ -300,7 +316,7 @@
                                 console.error('Papa Parse error:', error);
                             }
                         });
-                        return; // 成功したら関数を終了
+                        return;
                     } else {
                         console.log(`Failed to load ${filename}: ${response.status} ${response.statusText}`);
                     }
