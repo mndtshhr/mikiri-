@@ -251,7 +251,7 @@
         // 初期CSVファイル読み込み
         async function loadInitialCSV() {
             try {
-                const response = await fetch('無題 1.csv');
+                const response = await fetch('data.csv');
                 if (response.ok) {
                     const csvData = await response.text();
                     Papa.parse(csvData, {
@@ -268,7 +268,7 @@
                             }));
                             
                             data = processedData;
-                            fileName.textContent = '読み込み済み: 無題 1.csv（サンプル）';
+                            fileName.textContent = '読み込み済み: data.csv（サンプル）';
                             updateUI();
                             updateSegmentOptions();
                         }
